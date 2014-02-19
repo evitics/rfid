@@ -178,9 +178,9 @@ int send_str( char * id_str, int id_length) {
   for(int i=0; i<id_length; i++){
     length = Keyboard.print(id_str[i]);//on sucess length should always be 1 byte
     #ifdef DEBUG
-      Serial.print("send_str: Sent character "
+      Serial.print("send_str: Sent character ");
       Serial.print(id_str[i]);
-      Serial.print("length = ");
+      Serial.print(", length = ");
       Serial.println(length);
     #endif 
     if(length != 1) {
@@ -193,7 +193,11 @@ int send_str( char * id_str, int id_length) {
   Keyboard.end();
   if(tot_length != id_length){
      #ifdef DEBUG
-       Serial.println("Error(send_str): tot_length sent via keyboard does not equal to expected id_length\ntot_length = %d, id_length = %d", tot_length, id_length);
+       Serial.println("Error(send_str): tot_length sent via keyboard does not equal to expected id_length");
+       Serial.print("tot_length = ");
+       Serial.print(tot_length);
+       Serial.print(", id_length = ");
+       Serial.println(id_length);
      #endif 
      return 0;
   } else {
