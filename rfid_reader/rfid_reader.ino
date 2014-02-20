@@ -30,6 +30,7 @@ static int hold = false;
 #include <SPI.h>
 #include <boards.h>
 #include <services.h> 
+#include <keyboard.h>
 
 void setup()
 {
@@ -63,9 +64,7 @@ void setup()
 void loop() {
   if(RFID_bitsRead == BUZZCARD_BIT_LENGTH) {
     RFID_do_events();
- 	#ifdef DEBUG
-		printRFID();
-	#endif
+
   /*
     If we read more than BUZZCARD_BIT_LENGTH,
     then we've had an error somewhere.  
@@ -114,12 +113,11 @@ void RFID_do_events() {
   if(RFID_bitsRead >= 35) { //Why is this condition here? This function is called when RFID_bitsRead == BUZZCARD_ID
     unsigned long Card_Data = parseId();
 	
-	//print parsed card ID to Serial port if in DEBUG mode
+	//print parsed card ID (num) to Serial port if in DEBUG mode
 	#ifdef DEBUG
 		Serial.println(Card_Data);
 	#endif
 	
-    sendId(Card_Data);
     RFID_reset();
   }
 }
@@ -165,6 +163,48 @@ unsigned long parseId() {
 int id2str(char * destination, unsigned long id) {
  int length = sprintf(destination, "%lu\n", id);
  return length;
+}
+
+/*
+    Send destination param of id2str to computer via keyboard library
+    @param String pointer to the ID
+    @param Length of id string
+    @return 1 on sucess, 0 on fail
+*/
+int send_str( char * id_str, int id_length) {
+  int tot_length;
+  int length = 0;
+  Keyboard.begin();
+  for(int i=0; i<id_length; i++){
+    length = Keyboard.print(id_str[i]);//on sucess length should always be 1 byte
+    #ifdef DEBUG
+      Serial.print("send_str: Sent character ");
+      Serial.print(id_str[i]);
+      Serial.print(", length = ");
+      Serial.println(length);
+    #endif 
+    if(length != 1) {
+      Keyboard.end();
+      return 0;
+    }
+    ++tot_length;
+    length = 0;
+  }
+  Keyboard.end();
+  if(tot_length != id_length){
+     #ifdef DEBUG
+       Serial.println("Error(send_str): tot_length sent via keyboard does not equal to expected id_length");
+       Serial.print("tot_length = ");
+       Serial.print(tot_length);
+       Serial.print(", id_length = ");
+       Serial.println(id_length);
+     #endif 
+     return 0;
+  } else {
+     return 1; 
+  }
+  
+ 
 }
 
 /*
