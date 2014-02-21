@@ -10,9 +10,10 @@
 #define HOLD_PIN 7 //Stop the RFID Reader
 
 /*
-	DEBUG IFDEF Declaration
+	IFDEF Declarations
 */
-#define DEBUG 0
+#define DEBUG 1
+#define KEYBOARD 0
 
 /*
   RFID parsing information
@@ -38,7 +39,7 @@ void setup()
 
   // Attach pin change interrupt service routines from the Wiegand RFID readers
   attachInterrupt(0, dataZero_High, RISING);//DATA0 to pin 3 - data
-  attachInterrupt(4, dataOne_High, RISING); //DATA1 to pin 7 - clock
+  attachInterrupt(1, dataOne_High, RISING); //DATA1 to pin 2 - clock
   delay(10);
   
   /* Beeper Setup */
@@ -64,7 +65,7 @@ void setup()
 void loop() {
   if(RFID_bitsRead == BUZZCARD_BIT_LENGTH) {
     RFID_do_events();
-
+    
   /*
     If we read more than BUZZCARD_BIT_LENGTH,
     then we've had an error somewhere.  
@@ -113,17 +114,27 @@ void RFID_do_events() {
   if(RFID_bitsRead >= 35) { //Why is this condition here? This function is called when RFID_bitsRead == BUZZCARD_ID
     unsigned long Card_Data = parseId();
 	
-	//print parsed card ID (num) to Serial port if in DEBUG mode
+        //if in keyboard mode, send id via keyboard
+        #ifdef KEYBOARD
+          char buffer[11];
+          int length = id2str(buffer, Card_Data);
+          int success = send_str(buffer, length);
+        #endif
+        
+        
+        //print parsed card ID (num) to Serial port if in DEBUG mode
 	#ifdef DEBUG
 		Serial.println(Card_Data);
 	#endif
-	
+
     RFID_reset();
   }
 }
 
 void RFID_lock() {
-  Serial.println("Hold engaged");
+  #ifdef DEBUG
+    Serial.println("Hold engaged");
+  #endif
   hold = true;
   digitalWrite(HOLD_PIN, LOW);
   digitalWrite(GREEN_PIN, LOW);
@@ -139,7 +150,9 @@ void RFID_reset() {
 }
 
 void RFID_unlock() {
-  Serial.println("Hold dis-engaged");
+  #ifdef DEBUG
+    Serial.println("Hold dis-engaged");
+  #endif
   hold = false;
   digitalWrite(HOLD_PIN, HIGH);
   digitalWrite(RED_PIN, LOW);
@@ -172,11 +185,17 @@ int id2str(char * destination, unsigned long id) {
     @return 1 on sucess, 0 on fail
 */
 int send_str( char * id_str, int id_length) {
-  int tot_length;
+  int tot_length = 0;
   int length = 0;
   Keyboard.begin();
+  /*
+    Sending the null character at the end of the string
+    Maybe change the for-loop to a while to terminate at the null character to
+    send a "Return" key press instead... Keyboard.print auto "returns" at the null character
+  */
   for(int i=0; i<id_length; i++){
     length = Keyboard.print(id_str[i]);//on sucess length should always be 1 byte
+    //if this doesn't work try write
     #ifdef DEBUG
       Serial.print("send_str: Sent character ");
       Serial.print(id_str[i]);
@@ -185,6 +204,9 @@ int send_str( char * id_str, int id_length) {
     #endif 
     if(length != 1) {
       Keyboard.end();
+      #ifdef DEBUG
+        Serial.println("Error (send_str): Length returned by Keyboard.print does not equal 1. Exiting send_str on fail");
+      #endif
       return 0;
     }
     ++tot_length;
@@ -201,6 +223,9 @@ int send_str( char * id_str, int id_length) {
      #endif 
      return 0;
   } else {
+     #ifdef DEBUG
+       Serial.println("Successfully sent ID over Keyboard");
+     #endif
      return 1; 
   }
   
